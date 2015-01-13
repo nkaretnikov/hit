@@ -31,6 +31,7 @@ module Data.Git.Types
     , GitTime(..)
     , gitTime
     , gitTimeToLocal
+    , gitTimeToUTC
     -- * Pack delta types
     , DeltaOfs(..)
     , DeltaRef(..)
@@ -52,9 +53,12 @@ import Data.Git.Delta
 import Data.Hourglass (Elapsed, TimezoneOffset(..)
                       , timePrint, timeConvert
                       , Time(..), Timeable(..)
-                      , LocalTime, localTimeSetTimezone, localTimeFromGlobal)
+                      , LocalTime, localTimeSetTimezone, localTimeFromGlobal
+                      , timeGetDate, dateYear, dateMonth, dateDay
+                      , timeGetTimeOfDay, todHour, todMin, todSec, toSeconds)
 import Data.Data
 import qualified Data.ByteString.UTF8 as UTF8
+import Data.Time (UTCTime(..), fromGregorian, secondsToDiffTime)
 
 -- | type of a git object.
 data ObjectType =
@@ -92,6 +96,20 @@ gitTime seconds tzMins =
 gitTimeToLocal :: GitTime -> LocalTime Elapsed
 gitTimeToLocal (GitTime t tz) =
     localTimeSetTimezone tz (localTimeFromGlobal t)
+
+gitTimeToUTC :: GitTime -> UTCTime
+gitTimeToUTC gt = UTCTime utcDay diffTime
+    where
+      date     = timeGetDate gt
+      year     = toInteger $ dateYear date
+      month    = succ $ fromEnum $ dateMonth date
+      day      = dateDay date
+      utcDay   = fromGregorian year month day
+      tod      = timeGetTimeOfDay gt
+      hours    = toInteger $ toSeconds $ todHour tod
+      minutes  = toInteger $ toSeconds $ todMin tod
+      seconds  = toInteger $ todSec tod
+      diffTime = secondsToDiffTime $ hours + minutes + seconds
 
 -- | the enum instance is useful when marshalling to pack file.
 instance Enum ObjectType where
